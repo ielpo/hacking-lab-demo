@@ -1,0 +1,11 @@
+[project]
+name = "hacking-lab-demo"
+version = "0.1.0"
+description = "Demo for the hacking lab lecture presentation"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "bcrypt>=5.0.0",
+    "passlib>=1.7.4",
+    "ruff>=0.15.11",
+]
