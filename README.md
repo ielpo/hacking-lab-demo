@@ -5,7 +5,7 @@ A Docker Compose lab for demonstrating John the Ripper and Hydra against service
 ## Prerequisites
 
 - Docker and Docker Compose
-- rockyou passowrd list
+- rockyou password list
 
 # Quick Start
 
@@ -16,18 +16,19 @@ docker compose up -d
 
 ## Services
 
-| Service | Protocol | Port | Credentials |
-|---|---|---|---|---|---|
+| Service | Protocol | Host Port | Credentials |
+|---|---|---|---|
+| Samba AD DC | LDAP, SMB | 3890, 4450 | `CORP\\Administrator` / `AdminP@ss123!` |
 | SSH | SSH | 2222 | `admin` / `password123` |
 | FTP | FTP | 21 | `ftpuser` / `letmein` |
-| HTTP Basic Auth | HTTP | | 8080 | `webadmin` / `dragon` |
+| HTTP Basic Auth | HTTP | 8080 | `webadmin` / `dragon` |
 | DVWA (Form Login) | HTTP | 8081 | `admin` / `password` |
-| LDAP | LDAP |  | `admin` / `amministrazione` |
 
 ## Accessing Services
 
 - **SSH:** `ssh admin@localhost -p 2222`
 - **FTP:** `ftp localhost 21`
+- **Samba AD DC:** `smbclient -L //127.0.0.1 -p 4450 -U 'CORP\\Administrator%AdminP@ss123!'`
 - **HTTP Basic Auth:** open <http://localhost:8080> in a browser
 - **DVWA:** open <http://localhost:8081> in a browser
 
@@ -44,6 +45,14 @@ docker compose down -v
 **TODO**
 ```bash
 hydra -l admin -P rockyou.txt ssh://127.0.0.1:2222
+```
+
+### Brute-force SMB Against Samba AD
+
+Wait about 20-30 seconds after `docker compose up -d` so the domain can finish provisioning.
+
+```bash
+hydra -l alice -P rockyou.txt -s 4450 smb://127.0.0.1
 ```
 
 ### Brute-force attack on FTP
@@ -85,16 +94,28 @@ Attention: Uses John Jumbo (not Core)!
 
 Between each demo, need to run `rm -f ~/.john/john.pot` so cached cracks don't pre-empt the next run.
 
-## Demo 1: Mode convergence on NTLM hashes
+## Export NTLM hashes from Samba AD
 
-HTLM is format of Windows AD PW hashes + it's fast to compute.
-
-Setup: Build the hash file, NTLM is `MD4(UTF-16LE(password))` 
+This lab uses Samba AD as the open-source Active Directory implementation. Export the live NTLM hashes directly from Samba's local `sam.ldb` database:
 
 ```bash
-python make_ntlm.py
+docker compose exec samba-ad export-ntlm-hashes > ntlm.hashes
+cat ntlm.hashes
 ```
-Use the file previously extracted from LDAP.
+
+The exported hashes are already in John-compatible `LM:NTHASH` format.
+
+## Demo 1: Mode convergence on NTLM hashes
+
+NTLM is the format used for Windows AD password hashes, and it is fast to compute.
+
+Setup: build the hash file. NTLM is `MD4(UTF-16LE(password))`.
+
+```bash
+python make_passwords.py
+```
+
+If you want hashes from the running AD instead of generating them from the shared demo user list, use the export command above.
 
 ### Round 1: Single mode only (`--single`)
 
@@ -108,7 +129,7 @@ john --show --format=nt ntlm.hashes
 
 **Expected result:** Only `marc:Marc2024!` is cracked.
 
---> Speach Notes: "One out of five — and notice it's the one where the password is a variant of the username. 
+--> Speech Notes: "One out of five — and notice it's the one where the password is a variant of the username. 
 Lesson one: don't base your password on your name."
 
 ### Round 2: Wordlist, no rules
@@ -122,7 +143,7 @@ john --show --format=nt ntlm.hashes
 
 **Expected result:** `alice:dragon` cracked, plus `marc` still shown from before.
 
-"`dragon` is in the top 100 of rockyou — essentially free to crack. 
+"`dragon` is in the top 100 of rockyou — essentially free to crack.
 Lesson two: if your password is in any public breach dump, it's already compromised."$
 
 ### Round 3: Wordlist + Jumbo rules
@@ -150,7 +171,7 @@ john --show --format=nt ntlm.hashes
 
 **Expected result:** `carol:Winter2024` cracked. Mask narrows the keyspace to exactly `Uppercase + 5 lower + 4 digits` = 26 × 26⁵ × 10⁴ ≈ 3 billion candidates
 
-"If the attacker knows anything about your policy — from HR leaks, support tickets, or OSINT — they can prune the search space drastically.".
+"If the attacker knows anything about your policy — from HR leaks, support tickets, or OSINT — they can prune the search space drastically."
 
 ### Round 5: Incremental (brute force)
 
@@ -177,7 +198,7 @@ You'll see something like:
 
 ```bash
 rm -f ~/.john/john.pot
-john --wordlist=rockyou.txt --rules=Single --format=bcrypt bcrypt.hash
+john --wordlist=rockyou.txt --rules=Single --format=bcrypt bcrypt.hashes
 ```
 
 After 30s, press any key to show status.
