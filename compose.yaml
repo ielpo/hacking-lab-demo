@@ -1,4 +1,21 @@
 services:
+  samba-ad:
+    build:
+      context: .
+      dockerfile: Dockerfile.samba-ad
+    hostname: dc1
+    environment:
+      SAMBA_DOMAIN: CORP
+      SAMBA_REALM: CORP.INTERNAL
+      SAMBA_ADMIN_PASSWORD: AdminP@ss123!
+    ports:
+      - "3890:389"
+      - "4450:445"
+    volumes:
+      - samba-ad-data:/var/lib/samba
+    networks:
+      - hacknet
+
   # SSH target - credentials: admin / password123
   ssh-target:
     image: lscr.io/linuxserver/openssh-server:latest
@@ -85,6 +102,7 @@ services:
       - hacknet
 
 volumes:
+  samba-ad-data:
   dvwa-db-data:
 
 networks:

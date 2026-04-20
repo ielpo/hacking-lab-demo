@@ -1,0 +1,25 @@
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        krb5-user \
+        ldb-tools \
+        python3 \
+        python3-ldb \
+        samba \
+        smbclient \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/lab
+
+COPY demo_users.csv /opt/lab/demo_users.csv
+COPY export_ntlm_hashes.py /usr/local/bin/export-ntlm-hashes
+COPY samba-provision.sh /usr/local/bin/samba-provision
+
+RUN chmod +x /usr/local/bin/export-ntlm-hashes /usr/local/bin/samba-provision
+
+EXPOSE 389 445
+
+ENTRYPOINT ["/usr/local/bin/samba-provision"]
