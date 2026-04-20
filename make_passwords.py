@@ -1,13 +1,16 @@
-from passlib.hash import nthash
-import bcrypt
+import csv
 
-users = [
-    ("marc", "Marc123"),
-    ("alice", "dragon"),
-    ("bob", "P@ssw0rd2024"),
-    ("carol", "Winter2024"),
-    ("dave", "xk7m"),
-]
+import bcrypt
+from passlib.hash import nthash
+
+
+def load_users(path: str) -> list[tuple[str, str]]:
+    with open(path, newline="") as handle:
+        reader = csv.DictReader(handle)
+        return [(row["username"], row["password"]) for row in reader]
+
+
+users = load_users("demo_users.csv")
 
 with open("ntlm.hashes", "w") as f:
     for u, p in users:
