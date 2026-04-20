@@ -1,18 +1,15 @@
 services:
-  samba-ad:
-    build:
-      context: .
-      dockerfile: Dockerfile.samba-ad
-    hostname: dc1
+  # SMB target - credentials: smbuser / letmein
+  smb-target:
+    image: dockurr/samba
+    hostname: smb-target
     environment:
-      SAMBA_DOMAIN: CORP
-      SAMBA_REALM: CORP.INTERNAL
-      SAMBA_ADMIN_PASSWORD: AdminP@ss123!
-    ports:
-      - "3890:389"
-      - "4450:445"
+      NAME: "data"
     volumes:
-      - samba-ad-data:/var/lib/samba
+      - smb-data:/storage
+      - ./users.conf:/etc/samba/users.conf
+    ports:
+      - "4450:445"
     networks:
       - hacknet
 
@@ -102,8 +99,8 @@ services:
       - hacknet
 
 volumes:
-  samba-ad-data:
   dvwa-db-data:
+  smb-data:
 
 networks:
   hacknet:

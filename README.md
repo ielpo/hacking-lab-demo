@@ -18,7 +18,7 @@ docker compose up -d
 
 | Service | Protocol | Host Port | Credentials |
 |---|---|---|---|
-| Samba AD DC | LDAP, SMB | 3890, 4450 | `CORP\\Administrator` / `AdminP@ss123!` |
+| Samba | SMB | 4450 | `alice` / `dragon` |
 | SSH | SSH | 2222 | `admin` / `password123` |
 | FTP | FTP | 21 | `ftpuser` / `letmein` |
 | HTTP Basic Auth | HTTP | 8080 | `webadmin` / `dragon` |
@@ -28,7 +28,7 @@ docker compose up -d
 
 - **SSH:** `ssh admin@localhost -p 2222`
 - **FTP:** `ftp localhost 21`
-- **Samba AD DC:** `smbclient -L //127.0.0.1 -p 4450 -U 'CORP\\Administrator%AdminP@ss123!'`
+- **Samba:** `smbclient -L //127.0.0.1 -p 4450 -U 'alice%dragon'`
 - **HTTP Basic Auth:** open <http://localhost:8080> in a browser
 - **DVWA:** open <http://localhost:8081> in a browser
 
@@ -47,9 +47,7 @@ docker compose down -v
 hydra -l admin -P rockyou.txt ssh://127.0.0.1:2222
 ```
 
-### Brute-force SMB Against Samba AD
-
-Wait about 20-30 seconds after `docker compose up -d` so the domain can finish provisioning.
+### Brute-force SMB
 
 ```bash
 hydra -l alice -P rockyou.txt -s 4450 smb://127.0.0.1
