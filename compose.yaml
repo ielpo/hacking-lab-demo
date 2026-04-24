@@ -27,6 +27,8 @@ services:
       - "2222:2222"
     networks:
       - hacknet
+    volumes:
+      - ./ssh-config:/config
 
   # FTP target - credentials: ftpuser / letmein
   ftp-target:

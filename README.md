@@ -5,12 +5,13 @@ A Docker Compose lab for demonstrating John the Ripper and Hydra against service
 ## Prerequisites
 
 - Docker and Docker Compose
-- rockyou password list
+- uv
 
 # Quick Start
 
 ```bash
 gunzip rockyou.txt.gz
+uv run make_passwords.py
 docker compose up -d
 ```
 
@@ -40,169 +41,146 @@ docker compose down -v
 
 # Hydra Demo
 
-## Password list attack SSH
+Short, focused examples of password-list attacks with Hydra. Use `-f` to stop after the first valid login, `-V` for verbose output, and `-t` to control parallel tasks (increase for local demos; lower for remote targets).
 
-**TODO**
+Presenter checklist before starting Hydra demos:
+- Start services: `uv run make_passwords.py && docker compose up -d`
+- Ensure the wordlist is available: `test -f rockyou.txt || gunzip -k rockyou.txt.gz`
+- Have a browser open for DVWA at `http://localhost:8081`
+- Confirm `hydra` is installed: `which hydra`
+
+Tips: run each command in its own terminal so you can stop or show output independently.
+
+## SSH — password-list attack
+
+Command:
 ```bash
-hydra -l admin -P rockyou.txt ssh://127.0.0.1:2222
+hydra -l admin -P rockyou.txt -t 10 -f -V -s 2222 127.0.0.1 ssh
 ```
 
-### Brute-force SMB
+What to watch for: verbose output will show attempts; `-f` exits after the first successful login is found.
 
+## SMB — password-list attack
+
+Command:
 ```bash
-hydra -l alice -P rockyou.txt -s 4450 smb://127.0.0.1
+hydra -l alice -P rockyou.txt -t 8 -f -V smb://127.0.0.1:4450
 ```
 
-### Brute-force attack on FTP
+## HTTP Basic Auth — password-list attack
 
-**TODO**
+Command:
 ```bash
-hydra -l ftpuser ftp://127.0.0.1
+hydra -l webadmin -P rockyou.txt -t 10 -f -V -s 8080 127.0.0.1 http-get /
 ```
 
-### Brute-force HTTP Basic Auth
+## DVWA — login form (web form brute force)
 
-**TODO**
+Steps:
+1. Open `http://localhost:8081` and log in as `admin:password`. Click **Create / Reset Database**.
+2. In your browser devtools, copy the `PHPSESSID` cookie value for the DVWA domain.
+3. Run (replace `<session_id>`):
 ```bash
-hydra -l webadmin -P /usr/share/wordlists/rockyou.txt.gz 127.0.0.1:8081 http-get /
-```
-
-### Brute-force DVWA Login Form
-
-First log in to DVWA at <http://localhost:8081> and click **Create / Reset Database**, then:
-
-**TODO**
-```bash
-hydra -l admin -P /usr/share/wordlists/rockyou.txt.gz \
-  127.0.0.1:8080 http-get-form \
+hydra -l admin -P rockyou.txt \
+  127.0.0.1:8081 http-post-form \
   "/vulnerabilities/brute/:username=^USER^&password=^PASS^&Login=Login:Username and/or password incorrect.:H=Cookie: PHPSESSID=<session_id>;security=low"
 ```
 
-> Replace `<session_id>` with a valid PHPSESSID from your browser.
-
+Replace `<session_id>` with the value from your browser. Use `-V` during demos so you can narrate what Hydra is trying.
 
 # John The Ripper
 
-Attention: Uses John Jumbo (not Core)!
+Requires John Jumbo (not Core) for the full ruleset and masks used here.
 
-| Demo                              | Question answered                                | Time   |
-| --------------------------------- | ------------------------------------------------ | ------ |
-| 1. Mode convergence           | Which mode wins fastest for which password type? | ~3 min |
-| 2. Hash Algorithm Differences | Why does hash algorithm choice matter?           | ~1 min |
+Quick presenter checklist for John:
+- Ensure `ntlm.hashes` exists: `python make_passwords.py` (skip if already present)
+- Ensure `rockyou.txt` is uncompressed and available
+- Clear John cache between rounds: `rm -f ~/.john/john.pot`
 
-Between each demo, need to run `rm -f ~/.john/john.pot` so cached cracks don't pre-empt the next run.
+Table (quick glance)
+| Demo | Purpose | Approx time |
+|------|---------|------------:|
+| Mode convergence | Show how different modes target different password types | ~3 min |
+| Algorithm comparison | Show speed difference (NTLM vs bcrypt) | ~1 min |
 
-## Export NTLM hashes from Samba AD
+## Demo 1 — Mode convergence (NTLM)
 
-This lab uses Samba AD as the open-source Active Directory implementation. Export the live NTLM hashes directly from Samba's local `sam.ldb` database:
-
-```bash
-docker compose exec samba-ad export-ntlm-hashes > ntlm.hashes
-cat ntlm.hashes
-```
-
-The exported hashes are already in John-compatible `LM:NTHASH` format.
-
-## Demo 1: Mode convergence on NTLM hashes
-
-NTLM is the format used for Windows AD password hashes, and it is fast to compute.
-
-Setup: build the hash file. NTLM is `MD4(UTF-16LE(password))`.
-
+Build hashes (if not already present):
 ```bash
 python make_passwords.py
 ```
 
-If you want hashes from the running AD instead of generating them from the shared demo user list, use the export command above.
+Run these rounds in order, clearing `john.pot` between rounds so previous cracks don't affect results.
 
-### Round 1: Single mode only (`--single`)
-
-Single mode; uses the username and account metadata with aggressive mangling rules.
-
+1) Single mode (targets username-based variants)
 ```bash
 rm -f ~/.john/john.pot
 john --single --format=nt ntlm.hashes
 john --show --format=nt ntlm.hashes
 ```
+Expected: `marc:Marc2024!`
 
-**Expected result:** Only `marc:Marc2024!` is cracked.
-
---> Speech Notes: "One out of five — and notice it's the one where the password is a variant of the username. 
-Lesson one: don't base your password on your name."
-
-### Round 2: Wordlist, no rules
-
-Pure dictionary attack.
-
+2) Wordlist (no rules)
 ```bash
+rm -f ~/.john/john.pot
 john --wordlist=rockyou.txt --format=nt ntlm.hashes
 john --show --format=nt ntlm.hashes
 ```
+Expected: `alice:dragon`
 
-**Expected result:** `alice:dragon` cracked, plus `marc` still shown from before.
-
-"`dragon` is in the top 100 of rockyou — essentially free to crack.
-Lesson two: if your password is in any public breach dump, it's already compromised."$
-
-### Round 3: Wordlist + Jumbo rules
-
-Rules engine — leet substitutions, appended years, capitalizations, the standard 90-ish transformations in the Jumbo ruleset.
-
+3) Wordlist + Jumbo rules
 ```bash
+rm -f ~/.john/john.pot
 john --wordlist=rockyou.txt --rules=Jumbo --format=nt ntlm.hashes
 john --show --format=nt ntlm.hashes
 ```
+Expected: `bob:P@ssw0rd2024`
 
-**Expected result:** `bob:P@ssw0rd2024` now falls.
-
-"`P@ssw0rd2024` looks 'strong' — mixed case, numbers, symbols, 12 characters. But it's a dictionary word with predictable substitutions, and the rules engine catches exactly that pattern."
-
-### Round 4: Mask mode
-
-"Now suppose we know the corporate password policy — say HR forces everyone to use 'Word + Year'. We encode that as a mask."
-
+4) Mask mode (policy-driven)
 ```bash
+rm -f ~/.john/john.pot
 # ?u = upper, ?l = lower, ?d = digit
 john --mask='?u?l?l?l?l?l?d?d?d?d' --format=nt ntlm.hashes
 john --show --format=nt ntlm.hashes
 ```
+Expected: `carol:Winter2024`
 
-**Expected result:** `carol:Winter2024` cracked. Mask narrows the keyspace to exactly `Uppercase + 5 lower + 4 digits` = 26 × 26⁵ × 10⁴ ≈ 3 billion candidates
-
-"If the attacker knows anything about your policy — from HR leaks, support tickets, or OSINT — they can prune the search space drastically."
-
-### Round 5: Incremental (brute force)
-
-"Last resort: we give up on any structure and brute-force by character frequency. This is the slowest mode, but it's guaranteed to find anything within its keyspace if you let it run long enough."
-
+5) Incremental (brute-force)
 ```bash
+rm -f ~/.john/john.pot
 john --incremental=Alnum --min-length=4 --max-length=4 --format=nt ntlm.hashes
 john --show --format=nt ntlm.hashes
 ```
+Expected: `dave:xk7m`
 
-**Expected result:** `dave:xk7m` cracked.
+Presenter tips:
+- Run the `rm -f ~/.john/john.pot` command between rounds to avoid cached results.
+- Narrate why each mode is chosen and the expected crack type.
 
-"All five cracked."
+## Demo 2 — Hash algorithm differences (bcrypt)
 
-## Demo 2: Protecting hashed passwords
+Verify bcrypt is supported:
+```bash
+john --list=formats | grep -i bcrypt
+```
 
-Same weak password, different hash algorithm.
+If you need to generate a bcrypt hash (skip if `bcrypt.hashes` already exists):
+- If `htpasswd` on your system supports bcrypt, this will work:
+```bash
+echo 'password123' | htpasswd -nbBC 10 testuser | cut -d: -f2 > bcrypt.hashes
+```
+- Alternatively, use Python + `bcrypt` (if available):
+```bash
+python - <<'PY'
+import bcrypt
+print(bcrypt.hashpw(b'password123', bcrypt.gensalt(12)).decode())
+PY
+```
 
-Generate a bcrypt hash of the same weak password
-
-You'll see something like:
-
-## Attempt the crack
-
+Crack attempt:
 ```bash
 rm -f ~/.john/john.pot
 john --wordlist=rockyou.txt --rules=Single --format=bcrypt bcrypt.hashes
 ```
 
-After 30s, press any key to show status.
-
-```
-0g 0:00:00:38  3/3 0g/s 18.5p/s 18.5c/s 18.5C/s ...
-```
-
-Now we're at ~20 guesses per second instead of 10 billion.
+Presenter tip: bcrypt is intentionally slow — expect very low guesses/sec. Use this to demonstrate why algorithm choice matters.
