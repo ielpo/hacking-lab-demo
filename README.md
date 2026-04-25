@@ -83,7 +83,7 @@ rm -f ~/.john/john.pot
 john --single --format=nt ntlm.hashes
 john --show --format=nt ntlm.hashes
 ```
-Expected: `marc:Marc2024!`
+Expected: `marc:Marc123`
 
 2) Wordlist (no rules)
 ```bash

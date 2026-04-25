@@ -2,7 +2,7 @@ import bcrypt
 from passlib.hash import nthash
 
 users = [
-    ("marc", "Marc2024!"),
+    ("marc", "Marc123"),
     ("alice", "dragon"),
     ("bob", "P@ssw0rd2024"),
     ("carol", "Winter2024"),
