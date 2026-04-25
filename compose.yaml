@@ -7,7 +7,12 @@ services:
       NAME: "data"
     volumes:
       - smb-data:/storage
-      - ./users.conf:/etc/samba/users.conf
+      - type: bind
+        source: ./smb.conf
+        target: /etc/samba/smb.conf
+      - type: bind
+        source: ./users.conf
+        target: /etc/samba/users.conf
     ports:
       - "4450:445"
     networks:
@@ -46,7 +51,7 @@ services:
     networks:
       - hacknet
 
-  # HTTP Basic Auth target - credentials: webadmin / dragon
+  # HTTP Basic Auth target - credentials: webadmin / starwars
   http-basic:
     image: nginx:alpine
     hostname: http-basic
@@ -55,7 +60,7 @@ services:
       - -c
       - |
         apk add --no-cache apache2-utils &&
-        htpasswd -cb /etc/nginx/.htpasswd webadmin dragon &&
+        htpasswd -cb /etc/nginx/.htpasswd webadmin starwars &&
         cat > /etc/nginx/conf.d/default.conf <<'EOF'
         server {
           listen 80;
@@ -74,34 +79,7 @@ services:
     networks:
       - hacknet
 
-  # HTTP Form Login (DVWA) - credentials: admin / password
-  dvwa:
-    image: ghcr.io/digininja/dvwa:latest
-    hostname: dvwa
-    depends_on:
-      - dvwa-db
-    environment:
-      DB_SERVER: dvwa-db
-    ports:
-      - "8081:80"
-    networks:
-      - hacknet
-
-  dvwa-db:
-    image: mariadb:10
-    hostname: dvwa-db
-    environment:
-      MYSQL_ROOT_PASSWORD: dvwa
-      MYSQL_DATABASE: dvwa
-      MYSQL_USER: dvwa
-      MYSQL_PASSWORD: p@ssw0rd
-    volumes:
-      - dvwa-db-data:/var/lib/mysql
-    networks:
-      - hacknet
-
 volumes:
-  dvwa-db-data:
   smb-data:
 
 networks:
