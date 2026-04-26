@@ -1,0 +1,18 @@
+john --single --format=nt ntlm.hashes
+Runtime: 0.08s
+
+john --wordlist=rockyou.txt --rules=single --progress-every=2 --format=nt ntlm.hashes
+Runtime: 0.05s
+
+john --incremental=Alnum --min-length=4 --max-length=4 --format=nt ntlm.hashes
+Runtime: 0.28s
+
+john --wordlist=rockyou.txt --rules=jumbo --users=bob --fork=12 --progress-every=2 --format=nt ntlm.hashes
+Runtime: 60s
+
+john --mask=?u?l?l?l?d?d?d?d --fork=12 --progress-every=1 --format=nt ntlm.hashes
+Runtime: 8.5s
+
+john --show --format=nt ntlm.hashes
+
+john --wordlist=rockyou.txt --format=bcrypt bcrypt.hashes
