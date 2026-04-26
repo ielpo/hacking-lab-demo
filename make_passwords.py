@@ -5,7 +5,7 @@ users = [
     ("marc", "Marc123"),
     ("alice", "dragon"),
     ("bob", "P@ssw0rd2024"),
-    ("carol", "Winter2024"),
+    ("carol", "Wind2024"),
     ("dave", "xk7m"),
 ]
 
