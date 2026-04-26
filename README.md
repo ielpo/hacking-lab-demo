@@ -93,30 +93,30 @@ john --show --format=nt ntlm.hashes
 ```
 Expected: `alice:dragon`
 
-3) Wordlist + Jumbo rules
-```bash
-rm -f ~/.john/john.pot
-john --wordlist=rockyou.txt --rules=Jumbo --format=nt ntlm.hashes
-john --show --format=nt ntlm.hashes
-```
-Expected: `bob:P@ssw0rd2024`
-
-4) Mask mode (policy-driven)
-```bash
-rm -f ~/.john/john.pot
-# ?u = upper, ?l = lower, ?d = digit
-john --mask='?u?l?l?l?l?l?d?d?d?d' --format=nt ntlm.hashes
-john --show --format=nt ntlm.hashes
-```
-Expected: `carol:Winter2024`
-
-5) Incremental (brute-force)
+3) Incremental (brute-force)
 ```bash
 rm -f ~/.john/john.pot
 john --incremental=Alnum --min-length=4 --max-length=4 --format=nt ntlm.hashes
 john --show --format=nt ntlm.hashes
 ```
 Expected: `dave:xk7m`
+
+4) Wordlist + Jumbo rules
+```bash
+rm -f ~/.john/john.pot
+john --wordlist=rockyou.txt --rules=Jumbo --users=bob --format=nt ntlm.hashes
+john --show --format=nt ntlm.hashes
+```
+Expected: `bob:P@ssw0rd2024`
+
+5) Mask mode (policy-driven)
+```bash
+rm -f ~/.john/john.pot
+# ?u = upper, ?l = lower, ?d = digit
+john --mask='?u?l?l?d?d?d?d' --format=nt ntlm.hashes
+john --show --format=nt ntlm.hashes
+```
+Expected: `carol:Winter2024`
 
 ## Demo 2 — Hash algorithm differences (bcrypt)
 
